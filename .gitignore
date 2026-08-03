@@ -1,0 +1,53 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Mac system files
+.DS_Store
+
+# Environment variables
+.env
+
+# Raw and processed data
+data/raw/
+data/processed/
+
+# DuckDB database files
+database/*.duckdb
+database/*.db
+database/*.wal
+
+# Saved models
+models/*.pkl
+models/*.joblib
+models/*.json
+models/*.txt
+
+# Logs
+*.log
+
+# VS Code local settings
+.vscode/
+
+# Raw data
+data/raw/*
+!data/raw/.gitkeep
+
+# Processed data
+data/processed/*
+!data/processed/.gitkeep
+
+# Database files
+database/*
+!database/.gitkeep
+
+# Saved models
+models/*
+!models/.gitkeep
