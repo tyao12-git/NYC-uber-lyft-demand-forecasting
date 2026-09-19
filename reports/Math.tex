@@ -1,0 +1,117 @@
+\documentclass{article}
+\usepackage{amsmath}
+\title{Mathematical Explanation for NYC Ride Demand Forecasting in 2025}
+\author{Tommy Yao}
+\date{August--September 2026}
+
+
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+The following is the mathematical formulas in the model for the forecasting of  hourly Uber and Lyft ride demand in New York City. 
+Before building the forecasting model, large-scale trip records are cleaned, transformed, and aggregated using 
+DuckDB with SQL and PowerBI , and are integrated with weather and geographic information. 
+The forecasting framework incorporates temporal features, including lagged demand, 
+as well as weather and location-based predictors to capture spatial and temporal 
+variation in ride demand. The project aims to evaluate the predictive performance 
+of different modeling approaches and identify key factors associated with changes 
+in ride demand across New York City.
+
+\end{abstract}
+\section{Overview of Final Mathematical Structure for Modeling}
+\[
+z = \text{pickup zone}, \qquad
+c = \text{company}, \qquad
+t = \text{hour index}, \qquad
+k = \text{lag index}, \qquad
+\epsilon_{z,c,t} = \text{unobserved variation}
+\]
+\[
+\widehat{D}_{z,c,t}
+=
+f\left(
+\underbrace{T_t}_{\text{Time}},
+\underbrace{W_t}_{\text{Weather}},
+\underbrace{D_{z,c,t-k}}_{\text{Lag}},
+\underbrace{\bar{D}_{z,c,t}}_{\text{Rolling}},
+\underbrace{S_z}_{\text{Spatial}},
+\underbrace{C_c}_{\text{Company}}
+\right)+\epsilon_{z,c,t}
+\]
+
+
+
+\section{Target Variable and Lag features}
+
+\[
+Y_{z,c,t}
+=
+\text{Demand of zone } z,\text{ company } c,\text{ at hour } t
+\]
+
+\[
+Lag1_t = Y_{t-1}
+\]
+
+\[
+Lag2_t = Y_{t-2}
+\]
+
+\[
+Lag24_t = Y_{t-24}
+\]
+
+\[
+Lag168_t = Y_{t-168}(168=7*24=1\;week)
+\]
+
+\section{Rolling features}
+\[
+MA_{3,t}
+=
+\frac{Y_{t-1}+Y_{t-2}+Y_{t-3}}{3}
+\]
+
+\[
+MA_{24,t}
+=
+\frac{1}{24}
+\sum_{i=1}^{24}Y_{t-i}
+\]
+
+\section{Predictor Vector}
+\[
+X_{z,c,t}
+=
+\left[
+T_t,\,
+W_t,\,
+L_{z,c,t},\,
+R_{z,c,t},\,
+S_z,\,
+C_c
+\right]
+\]
+\[
+L_{z,c,t}
+=
+\left[
+Y_{t-1},
+Y_{t-2},
+Y_{t-24},
+Y_{t-168}
+\right]
+\]
+\[
+R_{z,c,t}
+=
+\left[
+MA_{3,t},
+MA_{24,t}
+\right]
+\]
+
+\end{document}

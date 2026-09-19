@@ -1,7 +1,8 @@
--- @conn NYC Ride
+-- @conn NYC Rides 2025
 
 --- basic raw data filter to create clean_trips--
-CREATE OR REPLACE TABLE clean_trips AS
+
+CREATE OR REPLACE VIEW clean_trips AS
 
 SELECT
     CASE
@@ -10,7 +11,7 @@ SELECT
         ELSE 'Other'
     END AS company_name,
 
-    -- 排除不需要的字段，以及需要重新转换的时间字段
+    -- exclude the unnecessary columns that are useless for analysis
     rt.* EXCLUDE (
         hvfhs_license_num,
         dispatching_base_num,
@@ -46,47 +47,29 @@ LEFT JOIN taxi_zones AS do_zone
     ON rt.DOLocationID = do_zone.LocationID
 
 WHERE rt.pickup_datetime IS NOT NULL
+  And rt.request_datetime IS NOT NULL
   AND rt.dropoff_datetime IS NOT NULL
+  AND request_datetime <= pickup_datetime
+  AND pickup_datetime <= dropoff_datetime
+  AND (
+      on_scene_datetime IS NULL
+      OR (
+          request_datetime <= on_scene_datetime
+          AND on_scene_datetime <= pickup_datetime
+      )
+  )
   AND rt.trip_miles > 0
   AND rt.trip_time > 0
   AND rt.base_passenger_fare > 0
   AND rt.hvfhs_license_num IN ('HV0003', 'HV0005');
 
-SELECT *
-FROM clean_trips
-LIMIT 10;
+
 --- basic raw data filter to create clean_trips--
 
 
----- Uber and Lyft trip count and the percentage of it
-SELECT
-    company_name,
-    COUNT(*) AS trip_count,
-    ROUND(
-        COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (),
-        2
-    ) AS percentage
-FROM clean_trips
-GROUP BY company_name
-ORDER BY trip_count DESC;
+---- Final Clean table without weather join
 
-select*
-from clean_trips
-limit 5;
---- abnormal value table from original data
-
-SELECT
-    COUNT(*) FILTER (WHERE trip_miles <= 0) AS invalid_miles,
-    COUNT(*) FILTER (WHERE trip_time <= 0) AS invalid_time,
-    COUNT(*) FILTER (WHERE base_passenger_fare < 0) AS negative_fare,
-    COUNT(*) FILTER (
-        WHERE PULocationID NOT BETWEEN 1 AND 265
-    ) AS invalid_pickup_zone
-FROM raw_trips;
-
----- Final Clean table
-
-CREATE OR REPLACE TABLE Final_Clean AS
+CREATE OR REPLACE VIEW Final_Clean AS
 
 SELECT
     company_name,
@@ -111,6 +94,7 @@ SELECT
     ) AS pickup_date,
 
     STRFTIME(pickup_datetime, '%A') AS day_of_week,
+    DATE_TRUNC('hour', request_datetime) AS request_hour,
     EXTRACT(day FROM pickup_datetime) AS day_of_month,
 
     CASE
@@ -144,7 +128,267 @@ SELECT
 
 FROM clean_trips;
 
-SELECT*
-from Final_Clean
-where day_of_month ='2'
+
+
+------ Final clean table with weather join
+CREATE OR REPLACE VIEW final_cleaned_with_weather AS
+
+SELECT
+    w.*,
+
+    -- =========================
+    -- Temperature
+    -- =========================
+    ROUND(c.temperature_2m, 2) AS temperature_f,
+
+    CASE
+        WHEN c.temperature_2m < 50 THEN 'Cold'
+        WHEN c.temperature_2m < 80 THEN 'Normal'
+        WHEN c.temperature_2m < 90 THEN 'Hot'
+        ELSE 'Extreme Hot'
+    END AS temperature_category,
+
+
+    -- =========================
+    -- Rain
+    -- =========================
+    ROUND(c.rain, 2) AS rain_inches,
+
+    CASE
+        WHEN COALESCE(c.rain, 0) = 0 THEN 'No Rain'
+        WHEN c.rain <= 0.10 THEN 'Light Rain'
+        ELSE 'Heavy Rain'
+    END AS rain_category,
+
+
+    -- =========================
+    -- Snowfall
+    -- =========================
+    ROUND(c.snowfall, 2) AS snowfall_inches,
+
+    CASE
+        WHEN COALESCE(c.snowfall, 0) = 0 THEN 'No Snow'
+        WHEN c.snowfall <= 0.10 THEN 'Light Snow'
+        ELSE 'Heavy Snow'
+    END AS snowfall_category,
+
+
+    -- =========================
+    -- Wind
+    -- =========================
+    ROUND(c.wind_speed_10m, 2) AS wind_speed_mph,
+
+    CASE
+        WHEN COALESCE(c.wind_speed_10m, 0) <= 3 THEN 'No Wind'
+        WHEN c.wind_speed_10m <= 15 THEN 'Light Wind'
+        ELSE 'Strong Wind'
+    END AS wind_category,
+
+
+    -- =========================
+    -- Precipitation
+    -- =========================
+    CASE
+        WHEN c.is_precipitating = 1 THEN 'Yes'
+        ELSE 'No'
+    END AS is_precipitating,
+
+
+    -- =========================
+    -- Snow
+    -- =========================
+    CASE
+        WHEN c.is_snowing = 1 THEN 'Yes'
+        ELSE 'No'
+    END AS is_snowing
+
+
+FROM Final_Clean AS w
+
+LEFT JOIN read_csv_auto(
+    '/Users/tommyyao/Desktop/Uber Project/nyc-uber-lyft-demand-forecasting/data/raw/weather/nyc_weather_hourly_2025.csv'
+) AS c 
+ON c.weather_hour = w.request_hour;
+
+
+
+
+---- Uber and Lyft trip count and the percentage of it
+SELECT
+    company_name,
+    COUNT(*) AS trip_count,
+    ROUND(
+        COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (),
+        2
+    ) AS percentage
+FROM clean_trips
+GROUP BY company_name
+ORDER BY trip_count DESC;
+
+-----
+
+
+CREATE OR REPLACE TABLE data_quality_summary AS
+
+WITH raw_stats AS (
+    SELECT
+        COUNT(*) AS total_records,
+
+        COUNT(*) FILTER (
+            WHERE pickup_datetime < request_datetime
+        ) AS negative_wait_time,
+
+        COUNT(*) FILTER (
+            WHERE hvfhs_license_num = 'HV0003'
+        ) AS uber_records,
+
+        COUNT(*) FILTER (
+            WHERE hvfhs_license_num = 'HV0005'
+        ) AS lyft_records,
+
+        COUNT(*) FILTER (
+            WHERE pickup_datetime IS NULL
+        ) AS missing_pickup_time,
+
+        COUNT(*) FILTER (
+            WHERE dropoff_datetime <= pickup_datetime
+        ) AS invalid_trip_duration,
+
+        COUNT(*) FILTER (
+            WHERE hvfhs_license_num NOT IN ('HV0003', 'HV0005')
+               OR hvfhs_license_num IS NULL
+        ) AS unknown_company
+
+    FROM raw_trips
+),
+
+clean_stats AS (
+    SELECT
+        COUNT(*) AS total_records,
+
+        COUNT(*) FILTER (
+            WHERE pickup_datetime < request_datetime
+        ) AS negative_wait_time,
+
+        COUNT(*) FILTER (
+            WHERE company_name = 'Uber'
+        ) AS uber_records,
+
+        COUNT(*) FILTER (
+            WHERE company_name = 'Lyft'
+        ) AS lyft_records,
+
+        COUNT(*) FILTER (
+            WHERE pickup_datetime IS NULL
+        ) AS missing_pickup_time,
+
+        COUNT(*) FILTER (
+            WHERE dropoff_datetime <= pickup_datetime
+        ) AS invalid_trip_duration,
+
+        COUNT(*) FILTER (
+            WHERE company_name NOT IN ('Uber', 'Lyft')
+               OR company_name IS NULL
+        ) AS unknown_company
+
+    FROM clean_trips
+)
+
+SELECT
+    'Total Records' AS metric,
+    r.total_records AS raw_data,
+    c.total_records AS clean_data,
+    ROUND(
+        (c.total_records - r.total_records)
+        * 100.0 / r.total_records,
+        2
+    ) || '%' AS change
+FROM raw_stats r, clean_stats c
+
+UNION ALL
+
+SELECT
+    'Negative Wait Time',
+    r.negative_wait_time,
+    c.negative_wait_time,
+    'Removed'
+FROM raw_stats r, clean_stats c
+
+UNION ALL
+
+SELECT
+    'Uber Records',
+    r.uber_records,
+    c.uber_records,
+    ROUND(
+        (c.uber_records - r.uber_records)
+        * 100.0 / NULLIF(r.uber_records, 0),
+        2
+    ) || '%'
+FROM raw_stats r, clean_stats c
+
+UNION ALL
+
+SELECT
+    'Lyft Records',
+    r.lyft_records,
+    c.lyft_records,
+    ROUND(
+        (c.lyft_records - r.lyft_records)
+        * 100.0 / NULLIF(r.lyft_records, 0),
+        2
+    ) || '%'
+FROM raw_stats r, clean_stats c
+
+UNION ALL
+
+SELECT
+    'Missing Pickup Time',
+    r.missing_pickup_time,
+    c.missing_pickup_time,
+    'Removed'
+FROM raw_stats r, clean_stats c
+
+UNION ALL
+
+SELECT
+    'Invalid Trip Duration',
+    r.invalid_trip_duration,
+    c.invalid_trip_duration,
+    'Removed'
+FROM raw_stats r, clean_stats c
+
+UNION ALL
+
+SELECT
+    'Unknown Company',
+    r.unknown_company,
+    c.unknown_company,
+    'Removed'
+FROM raw_stats r, clean_stats c;
+
+
+
+
+----test query zone 
+
+select * from data_quality_summary;
+
+
+Select *
+from final_cleaned_with_weather
+where pickup_date = '2025-09-30'
+    and pickup_borough = 'Manhattan'
+    and request_hour = '2025-09-30 20:00'
+    and company_name = 'Uber'
 limit 10;
+
+
+
+
+
+select *
+from final_cleaned_with_weather
+where temperature_f >= 80 and pickup_date='2025-07-15'
+limit 10; 
+---- test query above end

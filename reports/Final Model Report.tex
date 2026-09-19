@@ -1,0 +1,85 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{float}
+
+\title{Final Model Report and Business Insights}
+\author{Tommy Yao}
+\date{August--September 2026}
+
+
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+The following is my overall statistical reports from my final model. In addition to this, I will firstly provide
+specific business/strategic insights that can be derived from the final model. My final model do have some 
+undeprediction problems for high-demand observations, however, it is better than the overprediction of the
+high-demand observations, and I will explain the potential reasons and opportunity cost for each of them.
+\end{abstract}
+\section{Business Insights: Why Overprediction of High-Demand Observations is more disadvantageous for both Driver and Companies}
+\subsection{Overprediction Problems and reasons its intractability}
+For Instance, if the model predicts that the demand in zone A is 650 and the demand in zone B is 250-350, but the actual demand in zone A is 500 and the actual demand in zone B is 300.
+We generally Assume that location A is hotspot with demand higher than 350, and location B is more general location with demand between 5-350.
+\[
+D_A = 500, \qquad D_B = 300
+\]
+\[
+\hat{D}_A = 650, \qquad \hat{D}_B = 250-350
+\]
+According, the company
+ will reallocate drivers from zone B to zone A. 
+\[
+\text{Driver Reallocation:} \qquad B \rightarrow A
+\]
+This will result in a shortage of drivers in zone B, which will lead to longer wait times for customers in zone B and potentially lost revenue for the
+company.
+Thus, we have:
+\[
+\text{Oversupply}_A+\text{Undersupply}_B
+\]
+I give following reasons that why it is intractable:
+\begin{enumerate}
+    \item \textbf{Hurt market for two zones:}
+     When the prediction is made, it has already hurt two spatial markets. 
+     It is hard to do any compensation to fix this effect.
+
+
+    \item \textbf{Driver become unsatisfied and picky:} 
+    When Driver become idle, the driver will become more picky about orders 
+    and become unstatiated because of the time consumption.
+
+
+    \item  \textbf{Irreversibility in the short run:}
+    The problems caused by overprediction may already be irreversible in the short run.
+\end{enumerate}
+
+
+\subsection{Underprediction: Problems and Correction Mechanisms}
+
+
+Underprediction occurs when the actual ride demand exceeds the predicted demand. 
+This may result in insufficient driver supply, longer passenger waiting times, 
+higher cancellation rates, and potential revenue loss. However, compared with 
+overprediction, underprediction can be partially corrected through real-time 
+marketplace adjustments.
+
+\begin{enumerate}
+    \item \textbf{Real-Time Demand Detection:} 
+    Uber and Lyft can observe incoming ride requests and driver availability in 
+    real time. Therefore, an unexpected demand surge can be detected shortly 
+    after the original forecast is generated.
+
+    \item \textbf{Dynamic Pricing and Driver Incentives:} 
+    When demand exceeds available supply, surge pricing and driver incentives 
+    can encourage more drivers to become active or move toward high-demand areas, 
+    partially correcting the supply shortage.
+
+    \item \textbf{Flexible Driver Repositioning:} 
+    Available drivers from nearby zones can be encouraged to reposition toward 
+    the under-supplied area. This allows the platform to respond dynamically 
+    without requiring the original demand forecast to be perfectly accurate.
+\end{enumerate}
+\end{document}

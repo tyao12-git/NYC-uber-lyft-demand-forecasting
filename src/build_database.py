@@ -3,55 +3,77 @@ from pathlib import Path
 import duckdb
 
 
-# 当前项目根目录
+# root directory for the project
 PROJECT_DIR = Path(__file__).resolve().parent
 
-PARQUET_PATH = Path(
-
-    "/Users/tommyyao/Desktop/Uber Project/nyc-uber-lyft-demand-forecasting/data/raw/fhvhv/2025-09.parquet"
-
+# folder containing all 2025 monthly parquet files
+PARQUET_DIR = Path(
+    "/Users/tommyyao/Desktop/Uber Project/nyc-uber-lyft-demand-forecasting/data/raw/fhvhv"
 )
 
 DATABASE_PATH = Path(
-
     "/Users/tommyyao/Desktop/Uber Project/nyc-uber-lyft-demand-forecasting/database/nyc_rides.duckdb"
-
 )
 
 
 def main() -> None:
-    if not PARQUET_PATH.exists():
+
+    # check parquet folder
+    if not PARQUET_DIR.exists():
         raise FileNotFoundError(
-            f"找不到 Parquet 文件：{PARQUET_PATH}"
+            f"Cannot find Parquet folder: {PARQUET_DIR}"
         )
 
-    # 自动创建 database 文件夹
+    # check how many parquet files exist
+    parquet_files = sorted(PARQUET_DIR.glob("fhvhv_tripdata_2025-*.parquet"))
+
+    if not parquet_files:
+        raise FileNotFoundError(
+            f"No 2025 parquet files found in: {PARQUET_DIR}"
+        )
+
+    print(f"Found {len(parquet_files)} parquet files:")
+
+    for file in parquet_files:
+        print(f"  - {file.name}")
+
+    # create database folder automatically
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    # 连接到持久化 DuckDB 数据库
+    # connect to DuckDB database
     con = duckdb.connect(str(DATABASE_PATH))
 
     try:
-        # 建立一个指向 Parquet 文件的 View
-        # 不复制 1900 多万行数据，因此速度快，也节省硬盘
-        parquet_sql_path = str(PARQUET_PATH).replace("'", "''")
 
+        parquet_sql_path = str(
+            PARQUET_DIR / "fhvhv_tripdata_2025-*.parquet"
+        ).replace("'", "''")
 
+        # create raw_trips view from all monthly parquet files
         con.execute(
             f"""
             CREATE OR REPLACE VIEW raw_trips AS
             SELECT *
-            FROM read_parquet('{parquet_sql_path}')
+            FROM read_parquet(
+                '{parquet_sql_path}',
+                union_by_name = true
+            )
             """
         )
 
-        print("数据库创建成功。")
-        print(f"数据库位置：{DATABASE_PATH}")
+        print("\nDatabase created successfully.")
+        print(f"Database location: {DATABASE_PATH}")
 
-        print("\n表和 View：")
-        print(con.execute("SHOW ALL TABLES").df())
+        print("\nTables and views:")
+        print(
+            con.execute(
+                """
+                SHOW ALL TABLES
+                """
+            ).df()
+        )
 
-        print("\n数据前 5 行：")
+        print("\nFirst 5 rows:")
         print(
             con.execute(
                 """
@@ -62,17 +84,33 @@ def main() -> None:
             ).df()
         )
 
-        print("\n总行数：")
+        print("\nDate range:")
         print(
             con.execute(
                 """
-                SELECT COUNT(*) AS total_rows
+                SELECT
+                    MIN(request_datetime) AS min_date,
+                    MAX(request_datetime) AS max_date
                 FROM raw_trips
                 """
             ).df()
         )
 
-        print("\n字段结构：")
+        print("\nRows by month:")
+        print(
+            con.execute(
+                """
+                SELECT
+                    DATE_TRUNC('month', request_datetime) AS month,
+                    COUNT(*) AS total_rows
+                FROM raw_trips
+                GROUP BY month
+                ORDER BY month
+                """
+            ).df()
+        )
+
+        print("\nField structure:")
         print(
             con.execute(
                 """

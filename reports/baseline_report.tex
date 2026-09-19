@@ -1,0 +1,169 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{float}
+
+\title{Baseline Model for NYC Ride Demand Forecasting}
+\author{Tommy Yao}
+\date{August--September 2026}
+
+
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+The following is the statistics for the Baseline Model for NYC Ride Demand Forecasting using XGBoost. Besides the overall statistics,
+I also stated the potential problems,limitations, and important finding in this baseline model in order to improve the final model.
+
+\end{abstract}
+\section{Absolute Error/Residual Summary and Finding}
+
+\begin{table}[H]
+\centering
+\caption{Absolute Error Summary}
+\begin{tabular}{lr}
+\hline
+Statistic & Absolute Error \\
+\hline
+Count & 720061.000000 \\
+Mean  & 9.116391 \\
+Std   & 13.844857 \\
+Min   & 0.000005 \\
+25\%  & 2.187675 \\
+50\%  & 5.257342 \\
+75\%  & 11.060915 \\
+Max   & 983.192139 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Residual Summary}
+\begin{tabular}{lr}
+\hline
+Statistic & Residual \\
+\hline
+Count & 720061.000000 \\
+Mean  & -1.689658 \\
+Std   & 16.490416 \\
+Min   & -367.717285 \\
+25\%  & -7.035645 \\
+50\%  & -1.693508 \\
+75\%  & 3.017321 \\
+Max   & 983.192139 \\
+\hline
+\end{tabular}
+\end{table}
+
+\text{}
+
+\subsection{Finding and Thoughts}
+Over 50 percent of the residual are negative, which means that the model tends to overpredict the demand. The mean of the residual is -1.689658, which indicates that the model tends to overpredict the demand by 1.689658 on average. 
+The standard deviation of the residual is 16.490416, which indicates that the model's predictions are not very accurate. The maximum absolute error is 983.192139, which indicates that the model's predictions can be very far
+ from the actual demand. However, the interval between the 25th and 75th percentile is relatively small, which indicates that the model's predictions are relatively accurate for most of the observations. Overall, the model's
+  predictions are not useful for making practical predictions, but they are not completely useless either. The model can be improved by using more features and by using a more complex model.
+
+\section{Demand Prediction Error By Interval}
+
+\begin{table}[H]
+\centering
+\caption{Demand Prediction Error of Baseline Model by Demand Level}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lrrrrrrrr}
+\hline
+Demand Level &
+Observations &
+Avg. Demand &
+Avg. Predicted Demand &
+Avg. Residual &
+MAE &
+Total Demand &
+Total Abs. Error &
+Normalized MAE \\
+\hline
+$(0,10]$ &
+140760 & 5.038789 & 7.423070 & -2.384281 &
+3.090429 & 709260 & $4.350087\times10^{5}$ & 0.613328 \\
+
+$(10,50]$ &
+305179 & 27.376723 & 30.217375 & -2.840651 &
+6.188264 & 8354801 & $1.888528\times10^{6}$ & 0.226041 \\
+
+$(50,100]$ &
+149991 & 71.503144 & 73.726020 & -2.222876 &
+10.422685 & 10724828 & $1.563309\times10^{6}$ & 0.145765 \\
+
+$(100,200]$ &
+91639 & 139.016390 & 139.665621 & -0.649231 &
+16.476590 & 12739323 & $1.509898\times10^{6}$ & 0.118523 \\
+
+$(200,500]$ &
+30531 & 273.331728 & 265.734929 & 7.596800 &
+31.886967 & 8345091 & $9.735410\times10^{5}$ & 0.116660 \\
+
+$(500,\infty)$ &
+1961 & 634.994901 & 560.119652 & 74.875249 &
+98.966230 & 1245225 & $1.940728\times10^{5}$ & 0.155854 \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+\subsection{Finding and Further Change Analysis}
+
+
+The demand prediction is not perfect, but it provides some positive 
+information. The predictions for demand between 10 and 500 have relatively 
+low normalized MAE, which means that the model is able to predict demand 
+in this range with relatively low error.
+
+However, the predictions for demand below 10 and above 500 have relatively 
+high normalized MAE, which means that the model is less accurate in these 
+ranges. This may be due to the smaller number of observations in these 
+ranges, which makes it more difficult for the model to learn their underlying 
+patterns. Therefore, further analysis is needed to identify ways to improve 
+the model's performance in these ranges.
+
+Moreover, the general trend of the residuals indicates that the model tends 
+to overpredict demand when the actual demand is between 0 and 200, while it 
+tends to underpredict demand when the actual demand is above 200. This behavior 
+is understandable for a baseline model. In the final model, we will further 
+analyze these residual patterns and improve both the predictor set and the 
+mathematical formulation of the model.
+
+
+\section{Naive and XGBoost Baseline Model Performance and explanations}
+
+\begin{table}[htbp]
+\centering
+\caption{Naive Baseline Model Performance}
+\begin{tabular}{lr}
+\hline
+Metric & Value \\
+\hline
+Train Size & 3,497,789 \\
+Test Size  & 720,061 \\
+MAE        & 16.1457 \\
+RMSE       & 33.7749 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{XGBoost Baseline Model Performance}
+\begin{tabular}{lr}
+\hline
+Metric & Value \\
+\hline
+MAE        & 9.1164 \\
+RMSE       & 16.5767 \\
+$R^2$      & 0.9463 \\
+\hline
+\end{tabular}
+\end{table}
+
+\end{document}

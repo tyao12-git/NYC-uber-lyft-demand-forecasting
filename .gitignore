@@ -23,7 +23,16 @@ data/processed/
 database/*.duckdb
 database/*.db
 database/*.wal
+# LaTeX temporary files
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.log
 
+# Large Power BI / feature datasets
+saved csv for PowerBI/
+csv_features_final_results/
 # Saved models
 models/*.pkl
 models/*.joblib
@@ -51,3 +60,5 @@ database/*
 # Saved models
 models/*
 !models/.gitkeep
+# Large model prediction outputs
+outputs/*.csv
