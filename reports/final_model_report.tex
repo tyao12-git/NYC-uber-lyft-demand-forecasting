@@ -1,0 +1,527 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+
+\title{\textbf{Final Model Report: NYC Uber/Lyft Hourly Demand Forecasting}}
+\author{Tommy Yao}
+\date{August-September 2026}
+
+\begin{document}
+
+\maketitle
+
+% ============================================================
+\begin{abstract}
+
+This report presents the final demand forecasting model for hourly
+Uber and Lyft demand across New York City pickup zones. The final
+framework combines a primary XGBoost demand forecasting model with
+a residual correction model designed specifically for high-demand
+observations.
+
+The final model achieves an overall mean absolute error (MAE) of
+8.4533, root mean squared error (RMSE) of 15.9376, and coefficient
+of determination ($R^2$) of 0.9504. Model performance remains
+particularly strong for observations between 50 and 500 trips per
+zone-company-hour. However, extreme demand above 500 trips remains
+the primary source of forecasting error, with a normalized MAE of
+16.49\% and an underprediction rate of 81.39\%.
+
+The results suggest that the model captures the majority of regular
+temporal demand patterns effectively, while extreme demand events
+remain more difficult to predict because of their relatively low
+frequency and larger deviations from historical demand patterns.
+
+\end{abstract}
+
+
+
+
+% ============================================================
+
+\section{Correction Model Training Data}
+
+The high-demand validation sample contains 2,879 observations.
+
+\begin{table}[H]
+\centering
+\caption{High-Demand Correction Data}
+\begin{tabular}{lr}
+\toprule
+Statistic & Value \\
+\midrule
+High-demand observations & 2,879 \\
+Average actual demand & 584.7100 \\
+Average main-model prediction & 538.8819 \\
+Average correction target & 45.8281 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The positive average correction target indicates that the main model
+systematically underestimated demand within the high-demand correction
+sample. On average, actual demand exceeded the main-model prediction
+by approximately 45.83 trips.
+
+
+% ============================================================
+\section{Overall Final Model Performance}
+
+The final model produces the following out-of-sample performance:
+
+\begin{table}[H]
+\centering
+\caption{Final Model Performance}
+\begin{tabular}{lr}
+\toprule
+Metric & Value \\
+\midrule
+MAE & 8.4533 \\
+RMSE & 15.9376 \\
+$R^2$ & 0.9504 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The MAE indicates that the model's prediction differs from observed
+hourly demand by approximately 8.45 trips on average.
+
+The RMSE is larger than the MAE because large forecasting errors
+receive greater penalties under the squared-error formulation.
+This difference indicates that a relatively small number of
+high-error observations remain in the validation data.
+
+The $R^2$ of 0.9504 indicates that approximately 95.04\% of the
+variation in demand within the evaluation sample is explained by
+the model.
+
+
+% ============================================================
+\section{Forecasting Error by Demand Level}
+
+Model performance varies considerably across demand regimes.
+
+Define normalized MAE as
+
+\begin{equation}
+\mathrm{NMAE}
+=
+\frac{
+\sum_{i=1}^{n}
+\left|
+D_i-\widehat{D}_i
+\right|
+}{
+\sum_{i=1}^{n} D_i
+}.
+\end{equation}
+
+\begin{table}[H]
+\centering
+\caption{Forecasting Error by Demand Level}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lrrrrr}
+\toprule
+Demand Level &
+Observations &
+Avg. Demand &
+Avg. Prediction &
+MAE &
+NMAE \\
+\midrule
+0--5
+& 79,204 & 2.775 & 4.190 & 1.950 & 70.25\% \\
+
+5--10
+& 61,556 & 7.951 & 9.250 & 2.974 & 37.41\% \\
+
+10--50
+& 305,179 & 27.377 & 29.031 & 5.844 & 21.35\% \\
+
+50--100
+& 149,991 & 71.503 & 71.996 & 9.204 & 12.87\% \\
+
+100--200
+& 91,639 & 139.016 & 135.484 & 15.430 & 11.10\% \\
+
+200--500
+& 30,531 & 273.332 & 257.435 & 31.643 & 11.58\% \\
+
+500+
+& 1,961 & 634.995 & 550.017 & 104.712 & 16.49\% \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+
+\subsection{Interpretation}
+
+The model performs particularly well in the medium- and high-demand
+ranges between 50 and 500 trips. Normalized MAE is approximately
+11--13\% across these observations.
+
+The very high normalized error for the 0--5 demand category should
+be interpreted carefully. Because the denominator is extremely
+small, even an absolute error of only one or two trips can produce
+a large normalized percentage error. The absolute MAE in this
+category remains only 1.95 trips. In additional to this, small
+demand does not have a large business impact because the demand
+level is relatively small and it is less lucrative.
+
+Extreme demand above 500 trips presents a different problem. The
+average actual demand is approximately 635 trips, while the average
+prediction is approximately 550 trips. Therefore, the remaining
+error in this category reflects a meaningful systematic
+underprediction rather than merely a denominator effect.
+
+
+% ============================================================
+\section{Overprediction and Underprediction}
+
+The direction of forecasting error provides additional information
+beyond absolute-error metrics.
+
+\begin{table}[H]
+\centering
+\caption{Prediction Direction by Demand Level}
+\begin{tabular}{lrr}
+\toprule
+Demand Level &
+Overprediction &
+Underprediction \\
+\midrule
+0--5    & 72.95\% & 27.05\% \\
+5--10   & 58.36\% & 41.64\% \\
+10--50  & 55.13\% & 44.87\% \\
+50--100 & 49.63\% & 50.37\% \\
+100--200 & 40.80\% & 59.20\% \\
+200--500 & 31.34\% & 68.66\% \\
+500+     & 18.61\% & 81.39\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A clear directional pattern is observed. The model tends to
+overpredict very low demand and increasingly underpredict demand as
+the actual demand level rises.
+
+For demand above 500 trips, approximately 81.39\% of observations
+are underpredicted. This indicates that extreme demand remains the
+primary regime in which systematic prediction bias persists.
+
+
+% ============================================================
+\section{Extreme Demand Analysis}
+
+For observations with actual demand exceeding 500 trips:
+
+\begin{table}[H]
+\centering
+\caption{Performance for Demand Above 500 Trips}
+\begin{tabular}{lr}
+\toprule
+Statistic & Value \\
+\midrule
+Observations & 1,961 \\
+Average Actual Demand & 634.995 \\
+Average Prediction & 550.017 \\
+Average Residual & 84.978 \\
+MAE & 104.712 \\
+NMAE & 16.49\% \\
+Underprediction Rate & 81.39\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Despite the residual correction mechanism, extreme demand remains
+more difficult to forecast than regular demand. Nevertheless, an
+NMAE of 16.49\% indicates that the predictions retain substantial
+information about the magnitude of these high-demand periods.
+
+
+% ============================================================
+\section{Spatial Analysis of Extreme Demand}
+
+Extreme-demand observations are concentrated in a relatively small
+number of major transportation and commercial zones.
+
+\begin{table}[H]
+\centering
+\caption{Selected Zones with Demand Above 500 Trips}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lrrrrr}
+\toprule
+Pickup Zone &
+Observations &
+Avg. Demand &
+Avg. Prediction &
+Avg. Residual &
+MAE \\
+\midrule
+LaGuardia Airport
+& 597 & 667.74 & 604.21 & 63.53 & 105.30 \\
+
+JFK Airport
+& 195 & 602.29 & 543.62 & 58.67 & 73.15 \\
+
+Midtown Center
+& 139 & 701.17 & 620.10 & 81.06 & 91.55 \\
+
+East Village
+& 134 & 719.54 & 613.15 & 106.39 & 129.50 \\
+
+Lower East Side
+& 101 & 684.72 & 582.99 & 101.74 & 119.11 \\
+
+TriBeCa/Civic Center
+& 82 & 567.04 & 453.74 & 113.30 & 113.30 \\
+
+Union Sq
+& 72 & 554.67 & 476.07 & 78.60 & 79.27 \\
+
+West Chelsea/Hudson Yards
+& 70 & 587.94 & 485.08 & 102.86 & 104.65 \\
+
+Williamsburg (North Side)
+& 69 & 595.99 & 518.12 & 77.87 & 87.61 \\
+
+Crown Heights North
+& 69 & 578.29 & 479.91 & 98.38 & 100.48 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+LaGuardia Airport contains the largest number of extreme-demand
+observations, followed by JFK Airport. Extreme demand is also
+concentrated in major Manhattan commercial and nightlife areas,
+including Midtown Center, East Village, Lower East Side, and
+West Chelsea/Hudson Yards.
+
+The spatial results also reveal substantial heterogeneity in
+forecasting difficulty. For example, average residuals are
+considerably larger in several nightlife and residential-commercial
+zones than at JFK Airport. This suggests that extreme demand may be
+generated by different mechanisms across zones.
+
+
+% ============================================================
+\section{Holiday Performance}
+
+\begin{table}[H]
+\centering
+\caption{Holiday and Non-Holiday Forecast Performance}
+\begin{tabular}{lrrrr}
+\toprule
+Holiday &
+Observations &
+Avg. Demand &
+Avg. Prediction &
+MAE \\
+\midrule
+No
+& 684,774 & 58.912 & 58.629 & 8.384 \\
+
+Yes
+& 35,287 & 50.361 & 50.039 & 9.790 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Average predictions remain close to average observed demand for both
+holiday and non-holiday periods. However, holiday observations have
+a higher MAE of 9.79 compared with 8.38 for non-holiday observations.
+
+This indicates that holiday demand contains greater observation-level
+variation even though the model remains approximately unbiased at the
+aggregate level.
+
+
+% ============================================================
+\section{Feature Importance}
+
+The XGBoost feature importance results are shown below.
+
+\begin{table}[H]
+\centering
+\caption{Final Model Feature Importance}
+\begin{tabular}{lr}
+\toprule
+Feature & Importance \\
+\midrule
+Lag 168 Hours & 0.4357 \\
+Lag 1 Hour & 0.3974 \\
+Lag 24 Hours & 0.0770 \\
+Rolling Mean 3 Hours & 0.0364 \\
+Zone-Hour Interaction & 0.0147 \\
+Hour & 0.0109 \\
+Day of Week & 0.0036 \\
+Pickup Zone & 0.0032 \\
+Rolling Maximum 24 Hours & 0.0032 \\
+Holiday Indicator & 0.0028 \\
+Rolling Mean 24 Hours & 0.0025 \\
+Weekend Indicator & 0.0020 \\
+Rain Category & 0.0018 \\
+Rolling Mean 168 Hours & 0.0016 \\
+Temperature & 0.0016 \\
+Snow Indicator & 0.0016 \\
+Month & 0.0015 \\
+Wind Category & 0.0014 \\
+Company & 0.0012 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Interpretation of Feature Importance}
+
+Historical demand dominates the predictive structure of the model.
+The two most important predictors are demand from the same hour one
+week earlier and demand from the immediately preceding hour.
+
+Together,
+
+\begin{equation}
+0.4357 + 0.3974 \approx 0.8331,
+\end{equation}
+
+meaning that these two variables account for approximately 83.3\%
+of the reported XGBoost feature importance.
+
+The importance of $\mathrm{Lag168}$ demonstrates strong weekly
+periodicity in ride demand, while $\mathrm{Lag1}$ captures
+short-term demand persistence. The importance of $\mathrm{Lag24}$
+provides additional evidence of daily seasonality.
+
+Weather variables have relatively low individual feature importance.
+This does not necessarily imply that weather has no effect on ride
+demand. Instead, much of its predictive contribution may be smaller
+than, conditional on, or partially captured by recent historical
+demand patterns.
+
+
+% ============================================================
+\section{Business Interpretation}
+
+The model produces three findings that are particularly relevant
+for operational demand forecasting.
+
+\begin{enumerate}
+
+\item \textbf{Regular demand is highly predictable.}
+
+For demand between 50 and 500 trips per zone-company-hour, normalized
+MAE remains approximately 11--13\%. This suggests that historical
+demand patterns provide a strong operational baseline for forecasting
+normal and moderately high demand.
+
+\item \textbf{Extreme demand remains systematically underestimated.}
+
+For demand above 500 trips, the model underpredicts approximately
+81.39\% of observations. Therefore, an operational system relying
+only on point forecasts should account for additional uncertainty
+during extreme-demand periods.
+
+\item \textbf{Extreme-demand errors are spatially concentrated.}
+
+Airports, major Manhattan commercial areas, and several nightlife
+zones account for a substantial portion of observations above
+500 trips. Consequently, further model improvements could focus on
+zone-specific extreme-demand behavior rather than applying a uniform
+correction across all New York City zones.
+
+\end{enumerate}
+
+
+% ============================================================
+\section{Model Limitations}
+
+Several limitations remain in the final forecasting framework.
+
+First, extreme-demand observations are relatively rare compared with
+normal-demand observations. Only 1,961 validation observations exceed
+500 trips, making this regime substantially more difficult for the
+model to learn.
+
+Second, the current feature set relies heavily on historical demand.
+Unexpected events such as concerts, major sporting events, flight
+disruptions, transit interruptions, or unusual local activity may
+generate demand shocks that cannot be fully inferred from lagged
+demand.
+
+Third, standard XGBoost feature importance measures predictive usage
+within the fitted model and should not be interpreted as causal
+effects. In particular, the relatively low importance assigned to
+weather variables does not demonstrate that weather has no causal
+effect on ride demand.
+
+Finally, the residual correction model reduces systematic high-demand
+bias but does not eliminate it. The remaining 81.39\% underprediction
+rate for demand above 500 indicates that extreme-demand forecasting
+remains the primary opportunity for future improvement.
+
+
+% ============================================================
+\section{Potential Future Improvements}
+
+Future extensions could incorporate additional predictors related to
+extreme-demand events, including
+
+\begin{itemize}
+
+\item major concerts and sporting events,
+\item airport flight arrival and departure volume,
+\item public transportation disruptions,
+\item major holidays and special events,
+\item zone-specific high-demand correction models,
+\item interaction effects between location, hour, and weather, and
+\item probabilistic prediction intervals for operational uncertainty.
+
+\end{itemize}
+
+A particularly useful extension would be to model extreme demand
+separately for airports, Manhattan commercial zones, and nightlife
+areas. The spatial analysis suggests that the mechanisms generating
+extreme demand differ substantially across these locations.
+
+
+% ============================================================
+\section{Final Conclusion}
+
+The final model demonstrates strong overall forecasting performance, but systematic underprediction remains during extreme-demand periods.
+ In particular, demand above 500 trips is underpredicted in approximately 81.39\% of observations. However, these extreme-demand observations
+  are not distributed uniformly across New York City. They are concentrated in several high-volume locations, including LaGuardia Airport, 
+  JFK Airport, Midtown, East Village, and other major commercial or nightlife zones.
+
+Rather than uniformly increasing predictions across all zones, a more practical operational strategy is to introduce a \textbf{targeted demand buffer} for locations with historically persistent high-demand underprediction. 
+For a selected set of high-risk zones $\mathcal{Z}_{H}$, an operational forecast can be expressed as
+
+\begin{equation}
+\widehat{D}_{z,c,t}^{\mathrm{operational}}
+=
+\widehat{D}_{z,c,t}^{\mathrm{final}}
++
+I(z \in \mathcal{Z}_{H})B_{z,t},
+\end{equation}
+
+where $B_{z,t}$ represents an additional demand buffer determined from historical residual patterns for zone $z$ and potentially varying by time of day.
+
+This approach provides additional capacity protection in locations where extreme demand is repeatedly underestimated without unnecessarily increasing predictions throughout the entire system.
+
+At the same time, the buffer should remain conservative. Excessive upward adjustment may create \textbf{overprediction}, which can result in too many drivers being directed toward locations where realized demand is insufficient. This can increase driver idle time, empty vehicle mileage, congestion, and inefficient allocation of available supply. Therefore, completely eliminating underprediction should not necessarily be the operational objective.
+
+A more appropriate objective is to balance the asymmetric costs of forecasting errors. Moderate underprediction can often be addressed through real-time driver repositioning and supply responses, while substantial overprediction may proactively allocate resources to demand that never materializes. Consequently, the recommended strategy is to preserve the current model as the primary forecast while applying \textbf{small, zone-specific buffers only to locations and periods with persistent extreme-demand underprediction}.
+
+Overall, the model should therefore be viewed not only as a point forecasting system, but as a decision-support framework in which statistical predictions are combined with targeted operational adjustments. This approach reduces exposure to extreme-demand shortages while limiting the operational cost associated with unnecessary overprediction.
+
+
+\end{document}

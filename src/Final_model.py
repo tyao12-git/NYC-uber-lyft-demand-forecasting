@@ -20,7 +20,7 @@ import holidays
 # 1. LOAD DATA
 # ============================================================
 
-df = pd.read_csv("demand_features.csv")
+df = pd.read_csv("/Users/tommyyao/Desktop/Uber Project/nyc-uber-lyft-demand-forecasting/csv_features_final_results/demand_features.csv")
 
 df["request_hour"] = pd.to_datetime(df["request_hour"])
 
@@ -341,15 +341,15 @@ weights = np.ones(len(y_train), dtype=float)
 weights[
     (y_train > 0) &
     (y_train < 50)
-] = 2.0
+] = 1.25
 weights[
     (y_train >= 50) &
     (y_train < 500)
-] = 1.25
+] = 3
 
 weights[
     y_train >= 500
-] = 5
+] = 4
 
 model.fit(
     X_train,
