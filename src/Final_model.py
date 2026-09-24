@@ -366,25 +366,32 @@ model.fit(
 # ============================================================
 # 14A. CREATE HIGH-DEMAND RESIDUAL CORRECTION DATA
 # ============================================================
-# The main model has already been trained on the training set.
-# We now use validation predictions to construct residuals.
-# This avoids training the correction model on in-sample
-# residuals from the main training set.
 
 # Main-model predictions on validation data
 valid["main_prediction"] = model.predict(X_valid)
 
-# Residual = actual demand - main model prediction
+# Residual:
+# positive residual = main model underpredicted
+# negative residual = main model overpredicted
 valid["correction_target"] = (
     valid["demand"]
     - valid["main_prediction"]
 )
 
-# Focus the correction model on high-demand observations
-# 350 is the initial threshold for defining the high-demand regime.
+# ------------------------------------------------------------
+# Define TRUE high-demand observations for training
+# ------------------------------------------------------------
+# We use actual demand here ONLY because validation labels
+# are available during model development.
+#
+# This condition will NOT be used on the test set.
+
+HIGH_DEMAND_ACTUAL_THRESHOLD = 450
+
 high_valid = valid[
-    valid["demand"] >= 450
+    valid["demand"] >= HIGH_DEMAND_ACTUAL_THRESHOLD
 ].copy()
+
 
 print("\n==============================")
 print("HIGH-DEMAND CORRECTION DATA")
@@ -415,7 +422,7 @@ print(
 # 14B. TRAIN HIGH-DEMAND RESIDUAL CORRECTION MODEL
 # ============================================================
 
-# Use all original predictors plus the main model's prediction.
+# Original predictors + main model prediction
 correction_features = features + [
     "main_prediction"
 ]
@@ -467,10 +474,73 @@ print("\nHigh-demand correction model trained.")
 
 
 # ============================================================
-# 15. TEST PREDICTION
+# 15. TEST PREDICTION - MAIN MODEL
 # ============================================================
 
-test["predicted_demand"] = model.predict(X_test)
+# First-stage prediction
+test["main_prediction"] = model.predict(X_test)
+
+# Demand cannot be negative
+test["main_prediction"] = np.maximum(
+    test["main_prediction"],
+    0
+)
+
+
+# ============================================================
+# 15A. HIGH-DEMAND CORRECTION ON TEST SET
+# ============================================================
+
+# IMPORTANT:
+# At prediction time, actual demand is unknown.
+#
+# Therefore we CANNOT use:
+#
+#     test["demand"] >= 450
+#
+# to decide whether correction should be applied.
+#
+# Instead, use the MAIN MODEL prediction as the gate.
+
+CORRECTION_GATE = 400
+
+high_test_mask = (
+    test["main_prediction"] >= CORRECTION_GATE
+)
+
+
+# Default correction = 0
+test["predicted_correction"] = 0.0
+
+
+# Build correction-model predictors
+X_test_correction = test.loc[
+    high_test_mask,
+    correction_features
+]
+
+
+# Predict residual correction only for observations
+# classified as high-demand by the main model
+if len(X_test_correction) > 0:
+
+    test.loc[
+        high_test_mask,
+        "predicted_correction"
+    ] = correction_model.predict(
+        X_test_correction
+    )
+
+
+# ============================================================
+# 15B. FINAL PREDICTION
+# ============================================================
+
+test["predicted_demand"] = (
+    test["main_prediction"]
+    + test["predicted_correction"]
+)
+
 
 # Demand cannot be negative
 test["predicted_demand"] = np.maximum(
@@ -479,35 +549,167 @@ test["predicted_demand"] = np.maximum(
 )
 
 
+print("\n==============================")
+print("TEST CORRECTION SUMMARY")
+print("==============================")
+
+print(
+    "Test observations receiving correction:",
+    high_test_mask.sum()
+)
+
+print(
+    "Average predicted correction:",
+    test.loc[
+        high_test_mask,
+        "predicted_correction"
+    ].mean()
+)
+
+
 # ============================================================
-# 16. OVERALL METRICS
+# 16. BEFORE VS AFTER CORRECTION
 # ============================================================
 
-mae = mean_absolute_error(
+# ------------------------------------------------------------
+# BEFORE correction
+# ------------------------------------------------------------
+
+mae_before = mean_absolute_error(
+    y_test,
+    test["main_prediction"]
+)
+
+rmse_before = np.sqrt(
+    mean_squared_error(
+        y_test,
+        test["main_prediction"]
+    )
+)
+
+r2_before = r2_score(
+    y_test,
+    test["main_prediction"]
+)
+
+
+# ------------------------------------------------------------
+# AFTER correction
+# ------------------------------------------------------------
+
+mae_after = mean_absolute_error(
     y_test,
     test["predicted_demand"]
 )
 
-rmse = np.sqrt(
+rmse_after = np.sqrt(
     mean_squared_error(
         y_test,
         test["predicted_demand"]
     )
 )
 
-r2 = r2_score(
+r2_after = r2_score(
     y_test,
     test["predicted_demand"]
 )
 
 
 print("\n==============================")
-print("FINAL MODEL PERFORMANCE")
+print("BEFORE VS AFTER CORRECTION")
 print("==============================")
 
-print(f"MAE:  {mae:.4f}")
-print(f"RMSE: {rmse:.4f}")
-print(f"R²:   {r2:.4f}")
+print("\nBEFORE:")
+print(f"MAE:  {mae_before:.4f}")
+print(f"RMSE: {rmse_before:.4f}")
+print(f"R²:   {r2_before:.4f}")
+
+print("\nAFTER:")
+print(f"MAE:  {mae_after:.4f}")
+print(f"RMSE: {rmse_after:.4f}")
+print(f"R²:   {r2_after:.4f}")
+
+
+# ============================================================
+# 16A. HIGH-DEMAND TEST PERFORMANCE
+# ============================================================
+
+# IMPORTANT:
+# Here it IS okay to use actual demand because this section
+# is EVALUATION, not prediction logic.
+
+actual_high_test = test[
+    test["demand"] >= 450
+].copy()
+
+
+if len(actual_high_test) > 0:
+
+    high_mae_before = mean_absolute_error(
+        actual_high_test["demand"],
+        actual_high_test["main_prediction"]
+    )
+
+    high_mae_after = mean_absolute_error(
+        actual_high_test["demand"],
+        actual_high_test["predicted_demand"]
+    )
+
+    high_nmae_before = (
+        (
+            actual_high_test["demand"]
+            - actual_high_test["main_prediction"]
+        ).abs().sum()
+        /
+        actual_high_test["demand"].sum()
+    )
+
+    high_nmae_after = (
+        (
+            actual_high_test["demand"]
+            - actual_high_test["predicted_demand"]
+        ).abs().sum()
+        /
+        actual_high_test["demand"].sum()
+    )
+
+    under_before = (
+        actual_high_test["main_prediction"]
+        <
+        actual_high_test["demand"]
+    ).mean()
+
+    under_after = (
+        actual_high_test["predicted_demand"]
+        <
+        actual_high_test["demand"]
+    ).mean()
+
+
+    print("\n==============================")
+    print("HIGH-DEMAND TEST PERFORMANCE")
+    print("==============================")
+
+    print(
+        "High-demand observations:",
+        len(actual_high_test)
+    )
+
+    print("\nBEFORE correction:")
+    print(f"MAE: {high_mae_before:.4f}")
+    print(f"NMAE: {high_nmae_before:.4%}")
+    print(
+        f"Underprediction rate: "
+        f"{under_before:.2%}"
+    )
+
+    print("\nAFTER correction:")
+    print(f"MAE: {high_mae_after:.4f}")
+    print(f"NMAE: {high_nmae_after:.4%}")
+    print(
+        f"Underprediction rate: "
+        f"{under_after:.2%}"
+    )
 
 
 # ============================================================

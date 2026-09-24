@@ -29,11 +29,11 @@ observations.
 
 The final model achieves an overall mean absolute error (MAE) of
 8.4533, root mean squared error (RMSE) of 15.9376, and coefficient
-of determination ($R^2$) of 0.9504. Model performance remains
+of determination ($R^2$) of 0.9516. Model performance remains
 particularly strong for observations between 50 and 500 trips per
 zone-company-hour. However, extreme demand above 500 trips remains
 the primary source of forecasting error, with a normalized MAE of
-16.49\% and an underprediction rate of 81.39\%.
+12\% and an underprediction rate of 53\%.
 
 The results suggest that the model captures the majority of regular
 temporal demand patterns effectively, while extreme demand events
@@ -84,9 +84,9 @@ The final model produces the following out-of-sample performance:
 \toprule
 Metric & Value \\
 \midrule
-MAE & 8.4533 \\
-RMSE & 15.9376 \\
-$R^2$ & 0.9504 \\
+MAE & 8.4563 \\
+RMSE & 15.7416 \\
+$R^2$ & 0.9516 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -124,42 +124,23 @@ D_i-\widehat{D}_i
 }.
 \end{equation}
 
-\begin{table}[H]
+\begin{table}[htbp]
 \centering
-\caption{Forecasting Error by Demand Level}
-\resizebox{\textwidth}{!}{
-\begin{tabular}{lrrrrr}
-\toprule
-Demand Level &
-Observations &
-Avg. Demand &
-Avg. Prediction &
-MAE &
-NMAE \\
-\midrule
-0--5
-& 79,204 & 2.775 & 4.190 & 1.950 & 70.25\% \\
-
-5--10
-& 61,556 & 7.951 & 9.250 & 2.974 & 37.41\% \\
-
-10--50
-& 305,179 & 27.377 & 29.031 & 5.844 & 21.35\% \\
-
-50--100
-& 149,991 & 71.503 & 71.996 & 9.204 & 12.87\% \\
-
-100--200
-& 91,639 & 139.016 & 135.484 & 15.430 & 11.10\% \\
-
-200--500
-& 30,531 & 273.332 & 257.435 & 31.643 & 11.58\% \\
-
-500+
-& 1,961 & 634.995 & 550.017 & 104.712 & 16.49\% \\
-\bottomrule
+\caption{Prediction Direction by Demand Level}
+\label{tab:prediction_direction}
+\begin{tabular}{lcc}
+\hline
+\textbf{Demand Level} & \textbf{Overprediction} & \textbf{Underprediction} \\
+\hline
+0--5     & 0.729496 & 0.270504 \\
+5--10    & 0.583647 & 0.416353 \\
+10--50   & 0.551257 & 0.448743 \\
+50--100  & 0.496336 & 0.503664 \\
+100--200 & 0.407970 & 0.592030 \\
+200--500 & 0.330779 & 0.669221 \\
+500+     & 0.374809 & 0.625191 \\
+\hline
 \end{tabular}
-}
 \end{table}
 
 
@@ -177,11 +158,12 @@ category remains only 1.95 trips. In additional to this, small
 demand does not have a large business impact because the demand
 level is relatively small and it is less lucrative.
 
-Extreme demand above 500 trips presents a different problem. The
-average actual demand is approximately 635 trips, while the average
-prediction is approximately 550 trips. Therefore, the remaining
-error in this category reflects a meaningful systematic
-underprediction rather than merely a denominator effect.
+Extreme demand above 500 trips presents an improvement when I used
+the additional correction modeol using XGboost.Average actual demand is 
+approximately 634 trips, while the average
+prediction is approximately 595 trips. Therefore, the remaining
+error is somehow acceptable but there can be a room for advanced
+improvenment.
 
 
 % ============================================================
@@ -204,8 +186,8 @@ Underprediction \\
 10--50  & 55.13\% & 44.87\% \\
 50--100 & 49.63\% & 50.37\% \\
 100--200 & 40.80\% & 59.20\% \\
-200--500 & 31.34\% & 68.66\% \\
-500+     & 18.61\% & 81.39\% \\
+200--500 & 33.34\% & 66.92\% \\
+500+     & 37.48\% & 62.51\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -214,8 +196,9 @@ A clear directional pattern is observed. The model tends to
 overpredict very low demand and increasingly underpredict demand as
 the actual demand level rises.
 
-For demand above 500 trips, approximately 81.39\% of observations
-are underpredicted. This indicates that extreme demand remains the
+After the correction model is applied,For demand above 500 trips, 
+approximately 53.39\% of observationsare underpredicted. This 
+indicates that extreme demand remains the
 primary regime in which systematic prediction bias persists.
 
 
@@ -226,18 +209,17 @@ For observations with actual demand exceeding 500 trips:
 
 \begin{table}[H]
 \centering
-\caption{Performance for Demand Above 500 Trips}
+\caption{Performance for Demand Above 450 Trips}
 \begin{tabular}{lr}
 \toprule
 Statistic & Value \\
 \midrule
-Observations & 1,961 \\
-Average Actual Demand & 634.995 \\
-Average Prediction & 550.017 \\
-Average Residual & 84.978 \\
-MAE & 104.712 \\
-NMAE & 16.49\% \\
-Underprediction Rate & 81.39\% \\
+Observations & 2879 \\
+Average Actual Demand & 584.7 \\
+Average Prediction & 538.88 \\
+MAE & 75.01 \\
+NMAE & 12.8274\% \\
+Underprediction Rate & 53.58\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -254,51 +236,37 @@ information about the magnitude of these high-demand periods.
 Extreme-demand observations are concentrated in a relatively small
 number of major transportation and commercial zones.
 
-\begin{table}[H]
+\begin{table}[htbp]
 \centering
-\caption{Selected Zones with Demand Above 500 Trips}
-\resizebox{\textwidth}{!}{
+\caption{High-Demand Prediction Performance by Pickup Zone}
+\label{tab:high_demand_zone}
 \begin{tabular}{lrrrrr}
-\toprule
-Pickup Zone &
-Observations &
-Avg. Demand &
-Avg. Prediction &
-Avg. Residual &
-MAE \\
-\midrule
-LaGuardia Airport
-& 597 & 667.74 & 604.21 & 63.53 & 105.30 \\
-
-JFK Airport
-& 195 & 602.29 & 543.62 & 58.67 & 73.15 \\
-
-Midtown Center
-& 139 & 701.17 & 620.10 & 81.06 & 91.55 \\
-
-East Village
-& 134 & 719.54 & 613.15 & 106.39 & 129.50 \\
-
-Lower East Side
-& 101 & 684.72 & 582.99 & 101.74 & 119.11 \\
-
-TriBeCa/Civic Center
-& 82 & 567.04 & 453.74 & 113.30 & 113.30 \\
-
-Union Sq
-& 72 & 554.67 & 476.07 & 78.60 & 79.27 \\
-
-West Chelsea/Hudson Yards
-& 70 & 587.94 & 485.08 & 102.86 & 104.65 \\
-
-Williamsburg (North Side)
-& 69 & 595.99 & 518.12 & 77.87 & 87.61 \\
-
-Crown Heights North
-& 69 & 578.29 & 479.91 & 98.38 & 100.48 \\
-\bottomrule
+  \hline
+\textbf{Pickup Zone} &
+\textbf{Observations} &
+\textbf{Avg. Demand} &
+\textbf{Avg. Prediction} &
+\textbf{Avg. Residual} &
+\textbf{MAE} \\
+\hline
+LaGuardia Airport          & 597 & 667.74 & 629.06 & 38.68  & 92.18 \\
+JFK Airport                & 195 & 602.29 & 586.19 & 16.10  & 58.17 \\
+Midtown Center             & 139 & 701.17 & 692.96 & 8.20   & 49.80 \\
+East Village               & 134 & 719.54 & 682.65 & 36.88  & 82.65 \\
+Lower East Side            & 101 & 684.72 & 647.27 & 37.45  & 86.55 \\
+TriBeCa/Civic Center       & 82  & 567.04 & 507.94 & 59.09  & 63.99 \\
+Union Sq                   & 72  & 554.67 & 529.87 & 24.79  & 41.92 \\
+West Chelsea/Hudson Yards  & 70  & 587.94 & 538.47 & 49.47  & 59.00 \\
+Williamsburg (North Side)  & 69  & 595.99 & 561.85 & 34.13  & 60.62 \\
+Crown Heights North        & 69  & 578.29 & 528.25 & 50.04  & 62.32 \\
+Times Sq/Theatre District  & 64  & 584.36 & 586.35 & -1.99  & 46.60 \\
+Bushwick South             & 62  & 654.94 & 603.80 & 51.13  & 83.33 \\
+West Village               & 53  & 593.49 & 566.07 & 27.42  & 47.54 \\
+Greenpoint                 & 47  & 571.04 & 541.33 & 29.71  & 63.17 \\
+Midtown East               & 41  & 609.83 & 579.58 & 30.25  & 46.98 \\
+Bushwick North             & 35  & 621.49 & 548.25 & 73.23  & 97.36 \\
+\hline
 \end{tabular}
-}
 \end{table}
 
 LaGuardia Airport contains the largest number of extreme-demand
@@ -448,7 +416,7 @@ correction across all New York City zones.
 Several limitations remain in the final forecasting framework.
 
 First, extreme-demand observations are relatively rare compared with
-normal-demand observations. Only 1,961 validation observations exceed
+normal-demand observations. Only 2848 validation observations exceed
 500 trips, making this regime substantially more difficult for the
 model to learn.
 
@@ -465,7 +433,7 @@ weather variables does not demonstrate that weather has no causal
 effect on ride demand.
 
 Finally, the residual correction model reduces systematic high-demand
-bias but does not eliminate it. The remaining 81.39\% underprediction
+bias but does not eliminate it. The remaining 53.58\% underprediction
 rate for demand above 500 indicates that extreme-demand forecasting
 remains the primary opportunity for future improvement.
 
@@ -498,7 +466,7 @@ extreme demand differ substantially across these locations.
 \section{Final Conclusion}
 
 The final model demonstrates strong overall forecasting performance, but systematic underprediction remains during extreme-demand periods.
- In particular, demand above 500 trips is underpredicted in approximately 81.39\% of observations. However, these extreme-demand observations
+ In particular, demand above 500 trips is underpredicted in approximately 53.59\% of observations. However, these extreme-demand observations
   are not distributed uniformly across New York City. They are concentrated in several high-volume locations, including LaGuardia Airport, 
   JFK Airport, Midtown, East Village, and other major commercial or nightlife zones.
 
