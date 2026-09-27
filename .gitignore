@@ -62,3 +62,6 @@ models/*
 !models/.gitkeep
 # Large model prediction outputs
 outputs/*.csv
+*.out
+final_results/final_model_predictions.csv
+final_results/final_xgboost_model.json

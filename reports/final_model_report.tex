@@ -44,6 +44,97 @@ frequency and larger deviations from historical demand patterns.
 
 
 
+\section{Whole Demand Level Analysis}
+The whole demand levels are separated from 0 to 5, 5 to 10, 10 to 50, and so on. When the demand goes up, the 
+magnitude of the error(namely, NMAE) goes down. The prediction is relatively accurate at mid-level demand,
+and the high-demand situation is finally improved by an additional correction model for high-demand situation.
+\begin{table}[htbp]
+\centering
+\caption{Prediction Error by Demand Level}
+\label{tab:error_by_demand_level}
+
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrrr}
+\hline
+\textbf{Demand Level} &
+\textbf{Observations} &
+\textbf{Avg. Demand} &
+\textbf{Avg. Predicted Demand} &
+\textbf{Avg. Residual} &
+\textbf{MAE} &
+\textbf{Total Demand} &
+\textbf{Normalized MAE} \\
+\hline
+
+0--5
+& 79,204
+& 2.78
+& 4.19
+& -1.41
+& 1.95
+& 219,814
+& 0.703 \\
+
+5--10
+& 61,556
+& 7.95
+& 9.25
+& -1.30
+& 2.97
+& 489,446
+& 0.374 \\
+
+10--50
+& 305,179
+& 27.38
+& 29.03
+& -1.65
+& 5.84
+& 8,354,801
+& 0.213 \\
+
+50--100
+& 149,991
+& 71.50
+& 72.00
+& -0.49
+& 9.20
+& 10,724,828
+& 0.129 \\
+
+100--200
+& 91,639
+& 139.02
+& 135.48
+& 3.53
+& 15.43
+& 12,739,323
+& 0.111 \\
+
+200--500
+& 30,531
+& 273.33
+& 260.46
+& 12.87
+& 33.54
+& 8,345,091
+& 0.123 \\
+
+500+
+& 1,961
+& 634.99
+& 595.66
+& 39.34
+& 76.27
+& 1,245,225
+& 0.120 \\
+
+\hline
+\end{tabular}%
+}
+
+\end{table}
+
 
 % ============================================================
 
@@ -240,8 +331,10 @@ number of major transportation and commercial zones.
 \centering
 \caption{High-Demand Prediction Performance by Pickup Zone}
 \label{tab:high_demand_zone}
+
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lrrrrr}
-  \hline
+\hline
 \textbf{Pickup Zone} &
 \textbf{Observations} &
 \textbf{Avg. Demand} &
@@ -266,7 +359,8 @@ Greenpoint                 & 47  & 571.04 & 541.33 & 29.71  & 63.17 \\
 Midtown East               & 41  & 609.83 & 579.58 & 30.25  & 46.98 \\
 Bushwick North             & 35  & 621.49 & 548.25 & 73.23  & 97.36 \\
 \hline
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 LaGuardia Airport contains the largest number of extreme-demand
