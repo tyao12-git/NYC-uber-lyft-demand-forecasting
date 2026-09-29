@@ -9,6 +9,6 @@ However, I am glad that I could find some valuable information from data analyti
 could be potentially lucrative. 
 
 In my predictive model, I bring a comprehensive mathematical formulation pdf about predictors, weight, demand range design, etc. 
-In high demand situation, I designed an additional model to reduce the magnitude of underprediction and the extent of error.
+In high demand situation, I designed an additional model to reduce the amount of underprediction and the extent of error.
 
 I am on the way to become a competitive human!
